@@ -3,6 +3,9 @@ name: Build WVM
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -34,3 +37,10 @@ jobs:
         with:
           name: wvm-system-universal
           path: wvm-system-universal
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: WVM build ${{ github.run_number }}
+          files: wvm-system-universal

@@ -1,0 +1,207 @@
+#!/data/data/com.termux/files/usr/bin/bash
+# WVM - Wilson's Virtual Machine CLI
+# Wrapper around wvm-system-universal (built from the WVM fork)
+
+set -e
+
+WVM_HOME="$HOME/.wvm"
+VM_DIR="$WVM_HOME/vms"
+RUN_DIR="$WVM_HOME/run"
+
+mkdir -p "$VM_DIR" "$RUN_DIR"
+
+usage() {
+  cat <<EOU
+WVM - Wilson's Virtual Machine
+
+Usage:
+  wvm create <name> --arch <x86_64|aarch64|riscv64> --mem <MB> --disk <path> [--kernel <path>] [--cpus <n>]
+  wvm run <name>
+  wvm list
+  wvm status [name]
+  wvm delete <name>
+
+Examples:
+  wvm create myvm --arch riscv64 --mem 1024 --disk ./disk.img --kernel ./Image
+  wvm run myvm
+  wvm status myvm
+  wvm delete myvm
+EOU
+}
+
+vm_conf() { echo "$VM_DIR/$1.conf"; }
+vm_pidfile() { echo "$RUN_DIR/$1.pid"; }
+
+require_vm_exists() {
+  local name="$1"
+  if [ ! -f "$(vm_conf "$name")" ]; then
+    echo "Error: VM '$name' not found. Use 'wvm list' to see available VMs." >&2
+    exit 1
+  fi
+}
+
+is_running() {
+  local name="$1"
+  local pidfile
+  pidfile="$(vm_pidfile "$name")"
+  if [ -f "$pidfile" ] && kill -0 "$(cat "$pidfile")" 2>/dev/null; then
+    return 0
+  fi
+  return 1
+}
+
+cmd_create() {
+  local name="$1"; shift
+  if [ -z "$name" ]; then
+    echo "Error: VM name required." >&2
+    usage
+    exit 1
+  fi
+  if [ -f "$(vm_conf "$name")" ]; then
+    echo "Error: VM '$name' already exists." >&2
+    exit 1
+  fi
+
+  local arch="" mem="512" disk="" kernel="" cpus="1"
+
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --arch)   arch="$2"; shift 2 ;;
+      --mem)    mem="$2"; shift 2 ;;
+      --disk)   disk="$2"; shift 2 ;;
+      --kernel) kernel="$2"; shift 2 ;;
+      --cpus)   cpus="$2"; shift 2 ;;
+      *) echo "Unknown option: $1" >&2; exit 1 ;;
+    esac
+  done
+
+  if [ -z "$arch" ]; then
+    echo "Error: --arch is required (x86_64, aarch64, riscv64)." >&2
+    exit 1
+  fi
+  case "$arch" in
+    x86_64|aarch64|riscv64) ;;
+    *) echo "Error: unsupported arch '$arch'. Use x86_64, aarch64, or riscv64." >&2; exit 1 ;;
+  esac
+
+  cat > "$(vm_conf "$name")" <<EOC
+NAME="$name"
+ARCH="$arch"
+MEM="$mem"
+DISK="$disk"
+KERNEL="$kernel"
+CPUS="$cpus"
+EOC
+
+  echo "Created VM '$name' (arch=$arch, mem=${mem}MB, cpus=$cpus)."
+}
+
+cmd_list() {
+  if [ -z "$(ls -A "$VM_DIR" 2>/dev/null)" ]; then
+    echo "No VMs found. Use 'wvm create' to make one."
+    return
+  fi
+  printf "%-15s %-10s %-8s %-6s %-10s\n" "NAME" "ARCH" "MEM(MB)" "CPUS" "STATUS"
+  for conf in "$VM_DIR"/*.conf; do
+    [ -e "$conf" ] || continue
+    source "$conf"
+    if is_running "$NAME"; then
+      status="running"
+    else
+      status="stopped"
+    fi
+    printf "%-15s %-10s %-8s %-6s %-10s\n" "$NAME" "$ARCH" "$MEM" "$CPUS" "$status"
+  done
+}
+
+cmd_status() {
+  local name="$1"
+  if [ -z "$name" ]; then
+    cmd_list
+    return
+  fi
+  require_vm_exists "$name"
+  if is_running "$name"; then
+    local pid
+    pid="$(cat "$(vm_pidfile "$name")")"
+    echo "VM '$name' is running (pid $pid)."
+  else
+    echo "VM '$name' is stopped."
+  fi
+}
+
+cmd_run() {
+  local name="$1"
+  if [ -z "$name" ]; then
+    echo "Error: VM name required." >&2
+    exit 1
+  fi
+  require_vm_exists "$name"
+
+  if is_running "$name"; then
+    echo "Error: VM '$name' is already running." >&2
+    exit 1
+  fi
+
+  source "$(vm_conf "$name")"
+
+  local bin_path="${WVM_UNIVERSAL_BIN:-$WVM_HOME/wvm-system-universal}"
+
+  if [ ! -x "$bin_path" ]; then
+    echo "Error: $bin_path not found or not executable." >&2
+    echo "Download wvm-system-universal and place it at $WVM_HOME/, or set WVM_UNIVERSAL_BIN." >&2
+    exit 1
+  fi
+
+  export WVM_ARCH="$ARCH"
+
+  local args=(-m "$MEM" -smp "$CPUS" -nographic)
+
+  if [ -n "$DISK" ]; then
+    args+=(-drive "file=$DISK,format=raw,if=virtio")
+  fi
+  if [ -n "$KERNEL" ]; then
+    args+=(-kernel "$KERNEL")
+  fi
+  if [ "$ARCH" = "riscv64" ]; then
+    args+=(-machine virt)
+  fi
+
+  echo "Starting VM '$name' ($ARCH)..."
+  "$bin_path" "${args[@]}" &
+  local pid=$!
+  echo "$pid" > "$(vm_pidfile "$name")"
+  wait "$pid"
+  rm -f "$(vm_pidfile "$name")"
+}
+
+cmd_delete() {
+  local name="$1"
+  if [ -z "$name" ]; then
+    echo "Error: VM name required." >&2
+    exit 1
+  fi
+  require_vm_exists "$name"
+
+  if is_running "$name"; then
+    echo "Error: VM '$name' is running. Stop it before deleting." >&2
+    exit 1
+  fi
+
+  rm -f "$(vm_conf "$name")"
+  echo "Deleted VM '$name'."
+}
+
+case "$1" in
+  create) shift; cmd_create "$@" ;;
+  run)    shift; cmd_run "$@" ;;
+  list)   cmd_list ;;
+  status) shift; cmd_status "$@" ;;
+  delete) shift; cmd_delete "$@" ;;
+  -h|--help|"") usage ;;
+  *)
+    echo "Unknown command: $1" >&2
+    usage
+    exit 1
+    ;;
+esac

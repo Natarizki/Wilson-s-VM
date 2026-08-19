@@ -2,6 +2,7 @@
 # make-universal.sh
 # Bundles qemu-system-x86_64, qemu-system-aarch64, qemu-system-riscv64
 # into a single self-extracting file: wvm-system-universal
+# Intended to be invoked via the `wvm` CLI, not called directly.
 
 set -e
 
@@ -19,18 +20,19 @@ tar -czf "$TMP_TAR" -C "$SRC_DIR" \
 {
 cat << 'HEADER'
 #!/bin/bash
-# wvm-system-universal - self-extracting WVM binary bundle
-# Usage: wvm-system-universal <x86_64|aarch64|riscv64> [qemu args...]
+# wvm-system-universal - WVM binary backend (internal use)
+# Not meant to be called directly. Use `wvm run <vm-name>` instead.
+# Requires WVM_ARCH env var to be set to x86_64, aarch64, or riscv64.
 
 set -e
 
-ARCH="$1"
-shift || true
+ARCH="$WVM_ARCH"
 
 case "$ARCH" in
   x86_64|aarch64|riscv64) ;;
   *)
-    echo "Usage: wvm-system-universal <x86_64|aarch64|riscv64> [qemu args...]" >&2
+    echo "Error: wvm-system-universal must be invoked via 'wvm run'." >&2
+    echo "(WVM_ARCH env var missing or invalid: '$ARCH')" >&2
     exit 1
     ;;
 esac
