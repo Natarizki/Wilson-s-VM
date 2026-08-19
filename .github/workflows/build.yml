@@ -8,7 +8,14 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            host_arch: x86_64
+          - runner: ubuntu-24.04-arm
+            host_arch: arm64
+    runs-on: ${{ matrix.runner }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -31,16 +38,17 @@ jobs:
         run: |
           chmod +x scripts/make-universal.sh
           ./scripts/make-universal.sh build
+          mv wvm-system-universal wvm-system-universal-${{ matrix.host_arch }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: wvm-system-universal
-          path: wvm-system-universal
+          name: wvm-system-universal-${{ matrix.host_arch }}
+          path: wvm-system-universal-${{ matrix.host_arch }}
 
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
           name: WVM build ${{ github.run_number }}
-          files: wvm-system-universal
+          files: wvm-system-universal-${{ matrix.host_arch }}

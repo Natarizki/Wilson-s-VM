@@ -17,15 +17,32 @@ for pkg in curl git; do
   fi
 done
 
-echo "[2/5] Setting up ~/.wvm..."
+echo "[2/5] Detecting host architecture..."
+HOST_ARCH="$(uname -m)"
+case "$HOST_ARCH" in
+  x86_64|amd64)
+    WVM_HOST_ARCH="x86_64"
+    ;;
+  aarch64|arm64)
+    WVM_HOST_ARCH="arm64"
+    ;;
+  *)
+    echo "Error: unsupported host architecture '$HOST_ARCH'." >&2
+    echo "WVM only provides prebuilt binaries for x86_64 and arm64 hosts." >&2
+    exit 1
+    ;;
+esac
+echo "  Detected: $HOST_ARCH -> using wvm-system-universal-$WVM_HOST_ARCH"
+
+echo "[3/5] Setting up ~/.wvm..."
 mkdir -p "$WVM_HOME/vms" "$WVM_HOME/run" "$WVM_HOME/bin-cache"
 
-echo "[3/5] Downloading latest wvm-system-universal from GitHub Releases..."
-DOWNLOAD_URL="https://github.com/$REPO/releases/latest/download/wvm-system-universal"
+echo "[4/5] Downloading latest wvm-system-universal-$WVM_HOST_ARCH from GitHub Releases..."
+DOWNLOAD_URL="https://github.com/$REPO/releases/latest/download/wvm-system-universal-$WVM_HOST_ARCH"
 curl -fL "$DOWNLOAD_URL" -o "$WVM_HOME/wvm-system-universal"
 chmod +x "$WVM_HOME/wvm-system-universal"
 
-echo "[4/5] Installing wvm CLI..."
+echo "[5/5] Installing wvm CLI..."
 if [ -f "$CLI_SRC" ]; then
   cp "$CLI_SRC" "$WVM_HOME/wvm"
 else
@@ -38,7 +55,6 @@ chmod +x "$WVM_HOME/wvm"
 BIN_LINK="$PREFIX/bin/wvm"
 ln -sf "$WVM_HOME/wvm" "$BIN_LINK"
 
-echo "[5/5] Done."
 echo ""
 echo "WVM installed successfully."
 echo "Run 'wvm --help' to get started."
