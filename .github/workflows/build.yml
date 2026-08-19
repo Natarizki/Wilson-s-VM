@@ -24,15 +24,13 @@ jobs:
           cd build
           ninja
 
-      - name: Package artifacts
+      - name: Bundle into wvm-system-universal
         run: |
-          mkdir -p artifact/bin
-          cp build/qemu-system-x86_64 artifact/bin/ || true
-          cp build/qemu-system-aarch64 artifact/bin/ || true
-          cp build/qemu-system-riscv64 artifact/bin/ || true
+          chmod +x scripts/make-universal.sh
+          ./scripts/make-universal.sh build
 
-      - name: Upload artifacts
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: wvm-binaries
-          path: artifact/bin/
+          name: wvm-system-universal
+          path: wvm-system-universal
