@@ -11,28 +11,14 @@ jobs:
         run: |
           sudo rm -rf /usr/share/dotnet /opt/ghc || true
 
-      - name: Setup Java
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y openjdk-17-jdk
-          echo "JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64" >> "$GITHUB_ENV"
-
       - name: Clone termux-packages
         run: |
           git clone --depth 1 https://github.com/termux/termux-packages.git /tmp/termux-packages
 
-      - name: Setup Android SDK/NDK
+      - name: Build qemu-system-x86-64-headless (aarch64) via Docker
         working-directory: /tmp/termux-packages
         run: |
-          sudo mkdir -p /usr/local/lib/android
-          sudo chown -R "$USER:$USER" /usr/local/lib/android
-          echo "JAVA_HOME=$JAVA_HOME"
-          ./scripts/setup-android-sdk.sh
-
-      - name: Build qemu-system-x86-64-headless (aarch64)
-        working-directory: /tmp/termux-packages
-        run: |
-          ./build-package.sh -a aarch64 qemu-system-x86-64-headless
+          ./scripts/run-docker.sh ./build-package.sh -a aarch64 qemu-system-x86-64-headless
 
       - name: Locate built .deb files
         run: |
