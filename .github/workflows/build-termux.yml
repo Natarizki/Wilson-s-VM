@@ -1,0 +1,32 @@
+name: Build QEMU via termux-packages
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Free up disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc || true
+
+      - name: Clone termux-packages
+        run: |
+          git clone --depth 1 https://github.com/termux/termux-packages.git /tmp/termux-packages
+
+      - name: Build qemu-common (aarch64) via Docker builder
+        working-directory: /tmp/termux-packages
+        run: |
+          ./build-package.sh -a aarch64 qemu-common
+
+      - name: Locate built .deb files
+        run: |
+          find /tmp/termux-packages -name "*.deb" -exec cp {} . \;
+          ls -la *.deb
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: qemu-termux-debs
+          path: "*.deb"
