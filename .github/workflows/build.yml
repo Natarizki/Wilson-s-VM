@@ -23,7 +23,16 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y ninja-build meson pkg-config libglib2.0-dev libpixman-1-dev libgtk-3-dev libsdl2-dev python3 python3-venv libcap-ng-dev libattr1-dev zlib1g-dev bzip2 libxkbcommon-dev
+          sudo apt-get install -y ninja-build meson pkg-config libglib2.0-dev libpixman-1-dev libgtk-3-dev libsdl2-dev python3 python3-venv libcap-ng-dev libattr1-dev zlib1g-dev bzip2 bison flex
+
+      - name: Build static libxkbcommon
+        run: |
+          git clone --depth 1 --branch xkbcommon-1.7.0 https://github.com/xkbcommon/libxkbcommon.git /tmp/libxkbcommon
+          cd /tmp/libxkbcommon
+          meson setup build --default-library=static --prefix=/usr/local -Denable-wayland=false -Denable-docs=false -Denable-xkbregistry=false
+          ninja -C build
+          sudo ninja -C build install
+          sudo ldconfig
 
       - name: Configure
         run: |
