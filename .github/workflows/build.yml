@@ -29,7 +29,7 @@ jobs:
         run: |
           git clone --depth 1 --branch xkbcommon-1.7.0 https://github.com/xkbcommon/libxkbcommon.git /tmp/libxkbcommon
           cd /tmp/libxkbcommon
-          meson setup build --default-library=static --prefix=/usr/local -Denable-wayland=false -Denable-docs=false -Denable-xkbregistry=false
+          meson setup build --default-library=static --prefix=/usr/local -Denable-wayland=false -Denable-docs=false -Denable-xkbregistry=false -Denable-x11=false
           ninja -C build
           sudo ninja -C build install
           sudo ldconfig
