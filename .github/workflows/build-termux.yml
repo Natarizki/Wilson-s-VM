@@ -11,6 +11,12 @@ jobs:
         run: |
           sudo rm -rf /usr/share/dotnet /opt/ghc || true
 
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
       - name: Clone termux-packages
         run: |
           git clone --depth 1 https://github.com/termux/termux-packages.git /tmp/termux-packages
@@ -20,6 +26,7 @@ jobs:
         run: |
           sudo mkdir -p /usr/local/lib/android
           sudo chown -R "$USER:$USER" /usr/local/lib/android
+          echo "JAVA_HOME=$JAVA_HOME"
           ./scripts/setup-android-sdk.sh
 
       - name: Build qemu-system-x86-64-headless (aarch64)
