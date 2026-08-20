@@ -15,10 +15,10 @@ jobs:
         run: |
           git clone --depth 1 https://github.com/termux/termux-packages.git /tmp/termux-packages
 
-      - name: Build qemu-common (aarch64) via Docker builder
+      - name: Build qemu-system-x86-64-headless (aarch64) via Docker builder
         working-directory: /tmp/termux-packages
         run: |
-          ./build-package.sh -a aarch64 qemu-common
+          ./build-package.sh -a aarch64 qemu-system-x86-64-headless
 
       - name: Locate built .deb files
         run: |
