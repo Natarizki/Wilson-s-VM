@@ -1,49 +1,40 @@
 import sys
+import re
 
 path = sys.argv[1]
 
 with open(path) as f:
     content = f.read()
 
-old_targets = '''    local QEMU_TARGETS=""
+# Replace the QEMU_TARGETS assignment block using regex, tolerant of whitespace.
+# Matches from 'local QEMU_TARGETS=""' up to the last QEMU_TARGETS+= line
+# before the closing of that logical block (before CFLAGS+=).
+pattern = re.compile(
+    r'local QEMU_TARGETS=""\n(?:.*\n)*?\s*QEMU_TARGETS\+="x86_64-linux-user"',
+    re.MULTILINE
+)
 
-    # System emulation.
-    QEMU_TARGETS+="aarch64-softmmu,"
-    QEMU_TARGETS+="arm-softmmu,"
-    QEMU_TARGETS+="i386-softmmu,"
-    QEMU_TARGETS+="m68k-softmmu,"
-    QEMU_TARGETS+="ppc64-softmmu,"
-    QEMU_TARGETS+="ppc-softmmu,"
-    QEMU_TARGETS+="riscv32-softmmu,"
-    QEMU_TARGETS+="riscv64-softmmu,"
-    QEMU_TARGETS+="x86_64-softmmu,"
+replacement = (
+    'local QEMU_TARGETS=""\n\n'
+    '    # WVM: stripped to 3 target architectures only.\n'
+    '    QEMU_TARGETS+="aarch64-softmmu,"\n'
+    '    QEMU_TARGETS+="riscv64-softmmu,"\n'
+    '    QEMU_TARGETS+="x86_64-softmmu"'
+)
 
-    # User mode emulation.
-    QEMU_TARGETS+="aarch64-linux-user,"
-    QEMU_TARGETS+="arm-linux-user,"
-    QEMU_TARGETS+="i386-linux-user,"
-    QEMU_TARGETS+="m68k-linux-user,"
-    QEMU_TARGETS+="ppc64-linux-user,"
-    QEMU_TARGETS+="ppc-linux-user,"
-    QEMU_TARGETS+="riscv32-linux-user,"
-    QEMU_TARGETS+="riscv64-linux-user,"
-    QEMU_TARGETS+="x86_64-linux-user"'''
+new_content, count = pattern.subn(replacement, content)
 
-new_targets = '''    local QEMU_TARGETS=""
-
-    # WVM: stripped to 3 target architectures only.
-    QEMU_TARGETS+="aarch64-softmmu,"
-    QEMU_TARGETS+="riscv64-softmmu,"
-    QEMU_TARGETS+="x86_64-softmmu"'''
-
-if old_targets not in content:
-    print("ERROR: old_targets block not found, aborting patch")
+if count == 0:
+    print("ERROR: QEMU_TARGETS block not found via regex, aborting patch")
     sys.exit(1)
 
-content = content.replace(old_targets, new_targets)
-content = content.replace('--enable-kvm \\', '--disable-kvm \\')
+print(f"Replaced QEMU_TARGETS block ({count} match)")
+
+# Disable KVM
+new_content, kvm_count = re.subn(r'--enable-kvm\s*\\', '--disable-kvm \\\\', new_content)
+print(f"Replaced --enable-kvm ({kvm_count} match)")
 
 with open(path, "w") as f:
-    f.write(content)
+    f.write(new_content)
 
 print("Patch applied successfully")
