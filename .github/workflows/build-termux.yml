@@ -18,7 +18,7 @@ jobs:
       - name: Build qemu-system-x86-64-headless (aarch64) via Docker
         working-directory: /tmp/termux-packages
         run: |
-          ./scripts/run-docker.sh ./build-package.sh -a aarch64 qemu-system-x86-64-headless
+          ./scripts/run-docker.sh ./build-package.sh -i -a aarch64 qemu-system-x86-64-headless
 
       - name: Locate built .deb files
         run: |
