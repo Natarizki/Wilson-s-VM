@@ -4,13 +4,44 @@ on:
   workflow_dispatch:
 
 jobs:
-  inspect:
+  build:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout WVM repo
+        uses: actions/checkout@v4
+
+      - name: Free up disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc || true
+
       - name: Clone termux-packages
         run: |
           git clone --depth 1 https://github.com/termux/termux-packages.git /tmp/termux-packages
 
-      - name: Print qemu build.sh
+      - name: Patch qemu build.sh (WVM strip)
         run: |
+          python3 scripts/patch-qemu-build.py /tmp/termux-packages/packages/qemu-system-x86-64-headless/build.sh
+          echo "=== Patched build.sh ==="
           cat /tmp/termux-packages/packages/qemu-system-x86-64-headless/build.sh
+
+      - name: Build qemu-system-x86-64-headless (aarch64) via Docker
+        working-directory: /tmp/termux-packages
+        run: |
+          ./scripts/run-docker.sh ./build-package.sh -i -a aarch64 qemu-system-x86-64-headless
+
+      - name: Locate and rename built .deb files
+        run: |
+          find /tmp/termux-packages -name "*.deb" -exec cp {} . \;
+          for f in *.deb; do
+            newname=$(echo "$f" | tr ':' '_')
+            if [ "$f" != "$newname" ]; then
+              mv "$f" "$newname"
+            fi
+          done
+          ls -la *.deb
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: qemu-termux-debs-stripped
+          path: "*.deb"
