@@ -18,6 +18,10 @@ jobs:
         run: |
           git clone --depth 1 https://github.com/termux/termux-packages.git /tmp/termux-packages
 
+      - name: Copy WVM patch scripts into termux-packages
+        run: |
+          cp scripts/patch-qemu-biosstrip.py /tmp/termux-packages/wvm-biosstrip.py
+
       - name: Patch qemu build.sh (WVM strip)
         run: |
           python3 scripts/patch-qemu-build.py /tmp/termux-packages/packages/qemu-system-x86-64-headless/build.sh
