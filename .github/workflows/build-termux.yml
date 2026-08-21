@@ -20,9 +20,15 @@ jobs:
         run: |
           ./scripts/run-docker.sh ./build-package.sh -i -a aarch64 qemu-system-x86-64-headless
 
-      - name: Locate built .deb files
+      - name: Locate and rename built .deb files
         run: |
           find /tmp/termux-packages -name "*.deb" -exec cp {} . \;
+          for f in *.deb; do
+            newname=$(echo "$f" | tr ':' '_')
+            if [ "$f" != "$newname" ]; then
+              mv "$f" "$newname"
+            fi
+          done
           ls -la *.deb
 
       - name: Upload artifact
