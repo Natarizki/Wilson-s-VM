@@ -18,22 +18,35 @@ jobs:
         run: |
           git clone --depth 1 https://github.com/termux/termux-packages.git /tmp/termux-packages
 
-      - name: Download QEMU source and generate BIOS-strip patch
+      - name: Download QEMU source
         run: |
           curl -fL https://download.qemu.org/qemu-11.0.3.tar.xz -o /tmp/qemu-src.tar.xz
           mkdir -p /tmp/qemu-src
           tar -xf /tmp/qemu-src.tar.xz -C /tmp/qemu-src --strip-components=1
+
+      - name: Generate BIOS-strip patch
+        run: |
           python3 scripts/generate-biosstrip-patch.py \
             /tmp/qemu-src/pc-bios/meson.build \
             /tmp/termux-packages/packages/qemu-system-x86-64-headless/biosstrip.patch
-          echo "=== Generated patch ==="
+          echo "=== Generated BIOS-strip patch ==="
           cat /tmp/termux-packages/packages/qemu-system-x86-64-headless/biosstrip.patch
 
-      - name: "Patch qemu build.sh (WVM strip - targets, KVM)"
+      - name: Generate legacy device strip patches
+        run: |
+          python3 scripts/generate-legacy-strip-patch.py \
+            /tmp/qemu-src \
+            /tmp/termux-packages/packages/qemu-system-x86-64-headless
+          echo "=== i386 patch ==="
+          cat /tmp/termux-packages/packages/qemu-system-x86-64-headless/legacy-strip-i386.patch
+          echo "=== arm patch (first 40 lines) ==="
+          head -40 /tmp/termux-packages/packages/qemu-system-x86-64-headless/legacy-strip-arm.patch
+          echo "=== riscv patch ==="
+          cat /tmp/termux-packages/packages/qemu-system-x86-64-headless/legacy-strip-riscv.patch
+
+      - name: Patch qemu build.sh (WVM strip - targets, KVM)
         run: |
           python3 scripts/patch-qemu-build.py /tmp/termux-packages/packages/qemu-system-x86-64-headless/build.sh
-          echo "=== Patched build.sh ==="
-          cat /tmp/termux-packages/packages/qemu-system-x86-64-headless/build.sh
 
       - name: Build qemu-system-x86-64-headless (aarch64) via Docker
         working-directory: /tmp/termux-packages
