@@ -18,11 +18,18 @@ jobs:
         run: |
           git clone --depth 1 https://github.com/termux/termux-packages.git /tmp/termux-packages
 
-      - name: Copy WVM patch scripts into termux-packages
+      - name: Download QEMU source and generate BIOS-strip patch
         run: |
-          cp scripts/patch-qemu-biosstrip.py /tmp/termux-packages/wvm-biosstrip.py
+          curl -fL https://download.qemu.org/qemu-11.0.3.tar.xz -o /tmp/qemu-src.tar.xz
+          mkdir -p /tmp/qemu-src
+          tar -xf /tmp/qemu-src.tar.xz -C /tmp/qemu-src --strip-components=1
+          python3 scripts/generate-biosstrip-patch.py \
+            /tmp/qemu-src/pc-bios/meson.build \
+            /tmp/termux-packages/packages/qemu-system-x86-64-headless/biosstrip.patch
+          echo "=== Generated patch ==="
+          cat /tmp/termux-packages/packages/qemu-system-x86-64-headless/biosstrip.patch
 
-      - name: Patch qemu build.sh (WVM strip)
+      - name: "Patch qemu build.sh (WVM strip - targets, KVM)"
         run: |
           python3 scripts/patch-qemu-build.py /tmp/termux-packages/packages/qemu-system-x86-64-headless/build.sh
           echo "=== Patched build.sh ==="
